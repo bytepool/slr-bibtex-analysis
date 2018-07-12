@@ -71,7 +71,9 @@ class Entry():
     # Query; DOI: Authors; PublicationType; PublicationVenue; PublicationYear; Title; Abstract; WordCount;
 
 def strip_unwanted_chars(s):
-    """Strip unwanted characters from the given string. Might be slow, but gives the desired result."""
+    """
+    Strip unwanted characters from the given string. Slow, but gives the desired result.
+    """
     s = s.replace("\n", " ")
     s = s.replace("{", "")
     s = s.replace("}", "")
@@ -89,18 +91,14 @@ def strip_unwanted_chars(s):
     return s
 
 def strip_non_alphanum(s):
-    """Strip all non alphanumeric characters, except space. This may be fast, but does not quite give the right output. The regexp might need more tuning, so use strip_unwanted_chars instead."""
+    """
+    Strip all non alphanumeric characters, except space. 
+    This may be fast, but does not give the desired output, the regexp needs more tuning. 
+    Use strip_unwanted_chars instead. 
+    """
     pattern = re.compile(r'([^\s\w]|_)+')
     return pattern.sub('', s)
     
-
-def term_frequency(terms):
-    """
-    Calculate the relative frequency of all the terms in the given word list. 
-    """
-    return 0
-
-
 def format_authors(authors_string):
     """
     Format the given author string in a uniform way. 
@@ -125,9 +123,94 @@ def format_authors(authors_string):
     return new_authors_string[:-2]
 
 def print_pretty_header(header):
-    print("+" + ((len(header) + 2) * "-") + "+")
-    print("| " + header + " |")
-    print("+" + ((len(header) + 2) * "-") + "+") 
+    fill_length = 20 - (int(len(header) / 2.))
+    header_len = len(header) + 2
+    
+    line_filler = fill_length * "-"
+    head_filler = fill_length * " "
+    
+    line = "+" + line_filler + (header_len * "-") + line_filler + "+"
+    print(line)
+    print("| " + head_filler + header + head_filler + " |")
+    print(line)
+    print()
+
+
+def sort_dict_by_value(d, reverse=True):
+    """
+    Output a sorted tuple of two-tuples (key, value) of the given dictionary, 
+      where the second entry (value) is the item to be sorted. 
+    """
+    tmp = [(d[key], key) for key in d]
+    #tmp = [(key, d[key]) for key in d]
+    tmp.sort()
+    if reverse:
+        tmp.reverse()
+    res_tuple = [(b, a) for (a, b) in tmp]
+    return res_tuple
+
+def sort_dict_by_key(d, reverse=True):
+    """
+    Output a sorted tuple of two-tuples (key, value) of the given dictionary, 
+      where the first entry (key) is the item to be sorted. 
+    """
+    tmp = [(key, d[key]) for key in d]
+    tmp.sort()
+    if reverse:
+        tmp.reverse()
+    return tmp
+
+def print_tuples(tuples):
+    """
+    Print a list of two-tuples. 
+
+    For example, for the tuples ((a, b), (c, d)) the output will be:
+    a: b
+    c: d
+    """
+    l = [str(k) for k, v in tuples]
+    max_len = len(max(l, key=len)) + 1
+    #if max_len > 50:
+    #    max_len = 50
+        
+    for k, v in tuples:
+        spaces = (" " * (max_len - len(str(k))))
+        if type(v) is int:
+            print("%s:%s%5d" % (k, spaces, v))
+        elif type(v) is str:
+            print("%s:%s%s" % (k, spaces, v))
+        else:
+            print("Type in tuple '%s' not recognized, skipping." % t)
+
+    print()
+
+    
+def idenfity_duplicate_entries(entries):
+    """
+    Try to identify duplicate entries based on ID, year, authors and title. 
+    TODO: Add year check for both (ID and title). 
+    Consider string distance for title (scale distance with length) and authors. 
+    """
+
+def remove_duplicate_entries(entries):
+    """
+    Try to identify and remove duplicate entries based on ID, year, authors and title. 
+    Since entries are removed automatically, the identification must have a very high degree
+    of certainty. 
+    TODO: improve certainty by adding year checks for both ID and title. 
+    """
+    #print("Len before dup removal:", len(entries))
+    new = []
+    seen_id = set()
+    seen_title = set()
+    
+    for entry in entries:
+        if (entry["ID"] not in seen_id) and (entry["title"] not in seen_title):
+            seen_id.add(entry["ID"])
+            seen_title.add(entry["title"])
+            new.append(entry)
+    #print("Len after dup removal:", len(new))
+    return new
 
 def print_nr_of_entries(entries):
     """ Prints the number of entries found in the parsed bibfile. """
@@ -171,24 +254,20 @@ def print_term_frequencies(term_string):
     wordlist = wordlib.createWordList(term_string)
     wordlist = wordlib.removeStopwords(wordlist, wordlib.stopwords)
     worddict = wordlib.wordListToFreqDict(wordlist)
-    wordtuples = wordlib.sortFreqDict(worddict)
 
-    for t in wordtuples:
-        if t[1] is not "":
-            print("%s: %d" % (t[1], t[0]))
-    #print(worddict)
-    print()
-
+    wordtuples = sort_dict_by_value(worddict)
+    print_tuples(wordtuples)
 
 def print_author_list(entries):
     """Print a list of all authors in the bibfile."""
     author_list = []
     author_dict = {}
     for entry in entries:
-        authors = entry["author"]
-        authors = authors.replace("\n", " ")
-        authors = format_authors(authors)
-        author_list.append(authors)
+        if "author" in entry.keys():
+            authors = entry["author"]
+            authors = authors.replace("\n", " ")
+            authors = format_authors(authors)
+            author_list.append(authors)
 
     # author_list now contains properly formatted author strings for each paper
     # now extract individual authors from each entry, and put in a dict
@@ -204,47 +283,95 @@ def print_author_list(entries):
             else:
                 author_dict[author] = 1
 
+    print_pretty_header("AUTHORS")
     print("There are %d unique authors.\n" % len(author_dict.keys()))
-    for author in author_dict.keys():
-        print("%s co-authored %d papers." % (author, author_dict[author]))
-    #print(author_dict)
-
-def remove_duplicate_entries(entries):
-    """Try to identify and remove duplicate entries based on ID and title."""
-    #print("Len before dup removal:", len(entries))
-    new = []
-    seen_id = set()
-    seen_title = set()
+    sorted_tuples = sort_dict_by_key(author_dict, reverse=False)
+    print_tuples(sorted_tuples)
     
+    #for author in author_dict.keys():
+    #    spaces = (" " * (40 - len(author)))
+    #    print("%s%s co-authored %d papers." % (author, spaces, author_dict[author]))
+
+
+def print_publication_venues(entries):
+    """Print a list of all publication venues in the bibfile."""
+    d = {}
     for entry in entries:
-        if (entry["ID"] not in seen_id) and (entry["title"] not in seen_title):
-            seen_id.add(entry["ID"])
-            seen_title.add(entry["title"])
-            new.append(entry)
-    #print("Len after dup removal:", len(new))
-    return new
+        if "journal" in entry.keys():
+            venue = entry["journal"]
+        elif "booktitle" in entry.keys():
+            venue = entry["booktitle"]
+        else:
+            venue = ""
+            
+        venue = venue.replace("\n", " ")
+        if venue in d.keys():
+            d[venue] = d[venue] + 1
+        else:
+            d[venue] = 1
+
+    print_pretty_header("PUBLICATION VENUES")
+    print("There are %d unique publication venues.\n" % len(d.keys()))
+    sorted_tuples = sort_dict_by_value(d)
+    print_tuples(sorted_tuples)
+    
+    
+def print_entry_summary(entries, entry_type, sort_by_value=True):
+    """Print a list of all entries of the given entry type in the bibfile."""
+    d = {}
+    for entry in entries:
+        if entry_type in entry.keys():
+            s = entry[entry_type]
+        else:
+            s = ""
+            
+        s = s.replace("\n", " ")
+        if s in d.keys():
+            d[s] = d[s] + 1
+        else:
+            d[s] = 1
+
+    header = entry_type + "s"
+    print_pretty_header(header.upper())
+    print("There are %d unique %s.\n" % (len(d.keys()), header))
+    if sort_by_value:
+        sorted_tuples = sort_dict_by_value(d)
+    else:
+        sorted_tuples = sort_dict_by_key(d)
+    print_tuples(sorted_tuples)
+    
     
 def __main__():
 
+    parser = bibtexparser.bparser.BibTexParser()
+    parser.ignore_nonstandard_types = False
+    #parser.homogenise_fields = False
+    #parser.common_strings = False
+
     with open(full_path) as bibtex_file:
-        bib_database = bibtexparser.load(bibtex_file)
+        bib_database = bibtexparser.load(bibtex_file, parser)
 
     entries = bib_database.entries
 
     if not entries:
-        print("No bibtex entries found in %s. Aborting!" % full_path, file=sys.stderr)
+        Print("No bibtex entries found in %s. Aborting!" % full_path, file=sys.stderr)
         exit(ERR_NO_ENTRIES)
 
     print("\nAnalysing %s...\n" % full_path)
 
     entries = remove_duplicate_entries(entries)
+    
     print_nr_of_entries(entries)
-    #print_title_term_frequencies(entries)
-    #print_abstract_term_frequencies(entries)
+    print_title_term_frequencies(entries)
+    print_abstract_term_frequencies(entries)
     print_author_list(entries)
-
+    print_publication_venues(entries)
+    print_entry_summary(entries, "publisher")
+    print_entry_summary(entries, "organization")
+    print_entry_summary(entries, "year")
+    print_entry_summary(entries, "ENTRYTYPE")
+    
+    
 if __name__ == "__main__":
     __main__()
-
-
 
