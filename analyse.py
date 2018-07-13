@@ -104,12 +104,14 @@ def format_authors(authors_string):
     Format the given author string in a uniform way. 
     """
     new_authors_string = ""
-    authors = authors_string.split(" and ")
-
+    if " and " in authors_string:
+        authors = authors_string.split(" and ")
+    else:
+        authors = authors_string.split(", ")
+        
     for author in authors:
         if "," in author:
             #print("DEBUG: aut:", author)
-
             last_name, first_name = author.split(",")
             #print("DEBUG: ln, fn:", last_name, first_name)
             
@@ -359,7 +361,7 @@ def __main__():
 
     print("\nAnalysing %s...\n" % full_path)
 
-    entries = remove_duplicate_entries(entries)
+    #entries = remove_duplicate_entries(entries)
     
     print_nr_of_entries(entries)
     print_title_term_frequencies(entries)
